@@ -1,0 +1,36 @@
+{
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/node": "^18.11.17",
+    "nodemon": "^2.0.20",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@fawkes.js/api-types": "^2.0.2",
+    "@fawkes.js/client": "^2.0.1",
+    "axios": "^0.27.2",
+    "redis": "^4.5.1",
+    "ws": "^8.11.0"
+  },
+  "name": "@fawkes.js/rest",
+  "version": "3.0.1",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    "import": "./dist/esm/index.js",
+    "require": "./dist/cjs/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:dev": "nodemon src/index.ts",
+    "build": "tsc --project tsconfig.esm.json & tsc --project tsconfig.cjs.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "files": [
+    "dist"
+  ]
+}

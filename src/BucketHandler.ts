@@ -35,11 +35,11 @@ export class BucketHandler {
   }
 
   async queueRequest (request: any): Promise<void> {
-    const rateLimitValue = Number(await this.manager.REST.redisClient.incr(`ratelimit:${this.id}`))
-    const rateLimitTotal = Number(await this.manager.REST.redisClient.get(`ratelimit:${this.id}:total`))
-    if (rateLimitTotal !== null ? rateLimitValue > rateLimitTotal : false) {
-      this.ratelimit.queue.push(request)
-      this.manageQueue()
+    const rateLimitValue = Number(await this.manager.REST.redisClient.incr(`ratelimit:${this.id}`));
+    const rateLimitTotal = Number(await this.manager.REST.redisClient.get(`ratelimit:${this.id}:total`));
+    if (rateLimitTotal ? rateLimitValue > rateLimitTotal : false) {
+      this.ratelimit.queue.push(request);
+      this.manageQueue();
     } else {
       request.resolve(this.send(request.options))
     }
@@ -73,7 +73,7 @@ export class BucketHandler {
         void (async () => {
           this.ratelimit.timer = null
           await this.processQueue()
-        })
+        })()
       },
       this.ratelimit.time * 1000 ? this.ratelimit.time : 1000
     )

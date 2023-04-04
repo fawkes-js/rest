@@ -58,6 +58,7 @@ export class RequestManager {
     const globalRateLimit = Number(await this.REST.redisClient.incr('ratelimit:global', 1))
 
     if (globalRateLimit > 50) {
+
       await this.REST.redisClient.decr('ratelimit:global')
 
       void new Promise((resolve, reject) => {
@@ -68,6 +69,7 @@ export class RequestManager {
       await this.manageQueue()
       return this.ratelimit.queue[this.ratelimit.queue.length - 1]
     } else {
+
       const queueRequest = new Promise((resolve, reject) => {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.request({ resolve, reject, options })

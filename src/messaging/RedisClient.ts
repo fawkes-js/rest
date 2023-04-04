@@ -1,60 +1,62 @@
-import { RedisClientType } from "@redis/client";
-import { createClient } from "redis";
-import { REDISOptions } from '@fawkes.js/api-types'
+import { type RedisClientType } from '@redis/client'
+import { createClient } from 'redis'
+import { type REDISOptions } from '@fawkes.js/api-types'
 
 export class RedisClient {
-  redisClient!: RedisClientType;
-  options: REDISOptions;
-  constructor(options: REDISOptions) {
-    Object.defineProperty(this, "redisClient", { value: null, writable: true });
-    this.options = options;
+  redisClient!: RedisClientType
+  options: REDISOptions
+  constructor (options: REDISOptions) {
+    Object.defineProperty(this, 'redisClient', { value: null, writable: true })
+    this.options = options
   }
 
-  async connect() {
-    const url = this.options.url
+  async connect (): Promise<void> {
+    const url = this.options.url !== undefined
       ? this.options.url
-      : `redis://${this.options.username}:${this.options.password}@${this.options.hostname}:${this.options.port}`;
+      : `redis://${<string> this.options.username}:${<string> this.options.password}@${<string> this.options.hostname}:${<string> this.options.port}`
 
     this.redisClient = createClient({
-      url,
-    });
+      url
+    })
 
-    this.redisClient.on("error", (err) => console.log("Redis Client Error", err));
+    this.redisClient.on('error', (err) => { console.log('Redis Client Error', err) })
 
-    await this.redisClient.connect();
+    await this.redisClient.connect()
   }
 
-  async get(key: string) {
-    return this.redisClient.GET(key);
+  async get (key: string): Promise<any> {
+    return await this.redisClient.GET(key)
   }
 
-  async set(key: string, value: string) {
-    return this.redisClient.SET(key, value);
+  async set (key: string, value: string): Promise<any> {
+    return await this.redisClient.SET(key, value)
   }
 
-  async decr(key: string, expire?: number) {
-    if (expire) await this.redisClient.multi().DECR(key).EXPIRE(key, expire, "NX").exec();
-    else await this.redisClient.multi().DECR(key).exec();
+  async decr (key: string, expire?: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (expire) await this.redisClient.multi().DECR(key).EXPIRE(key, expire, 'NX').exec()
+    else await this.redisClient.multi().DECR(key).exec()
 
-    const value = await this.redisClient.get(key);
+    const value = await this.redisClient.get(key)
 
-    return value;
+    return value
   }
 
-  async incr(key: string, expire?: number) {
-    if (expire) await this.redisClient.multi().INCR(key).EXPIRE(key, expire, "NX").exec();
-    else await this.redisClient.multi().EXPIRE(key, 60, "NX").INCR(key).exec();
+  async incr (key: string, expire?: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (expire) await this.redisClient.multi().INCR(key).EXPIRE(key, expire, 'NX').exec()
+    else await this.redisClient.multi().EXPIRE(key, 60, 'NX').INCR(key).exec()
 
-    const value = await this.redisClient.get(key);
+    const value = await this.redisClient.get(key)
 
-    return value;
+    return value
   }
 
-  async expire(key: string, seconds: number, mode: "NX" | "XX" | "GT" | "LT") {
-    return this.redisClient.EXPIRE(key, seconds, mode);
+  async expire (key: string, seconds: number, mode: 'NX' | 'XX' | 'GT' | 'LT'): Promise<any> {
+    return await this.redisClient.EXPIRE(key, seconds, mode)
   }
 
-  async ttl(key: string) {
-    return this.redisClient.TTL(key);
+  async ttl (key: string): Promise<any> {
+    return await this.redisClient.TTL(key)
   }
 }

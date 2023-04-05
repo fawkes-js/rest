@@ -1,9 +1,9 @@
-import axios from 'axios';
-import { RequestOptions } from './REST';
+import axios, { AxiosResponse } from 'axios';
+import { RequestBundle } from './REST';
 import { RequestManager } from './RequestManager';
 
 type Request = {
-  options: RequestOptions;
+  options: RequestBundle;
   resolve: any;
   reject: any;
 };
@@ -22,7 +22,7 @@ export class BucketHandler {
     this.reset = null;
   }
 
-  async queueRequest(request: RequestOptions) {
+  async queueRequest(request: RequestBundle) {
     return new Promise(async (resolve, reject) => {
       this.queue.push({
         options: request,
@@ -54,13 +54,22 @@ export class BucketHandler {
 
     if (!request) return;
 
-    console.log('req sent!');
-    const res = await axios.request({
-      method: request.options.requestMethod,
-      url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.endpoint}`,
-      headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
-    });
+    let res: AxiosResponse;
+    if (request.options.data)
+      res = await axios.request({
+        method: request.options.options.requestMethod,
+        url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.options.endpoint}`,
+        headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
+        data: request.options.data,
+      });
+    else
+      res = await axios.request({
+        method: request.options.options.requestMethod,
+        url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.options.endpoint}`,
+        headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
+      });
 
+    console.log(res);
     const cache = await this.requestManager.REST.cache.get(this.id);
     if (cache)
       this.requestManager.REST.cache.set(

@@ -23,6 +23,11 @@ export type RequestOptions = {
   endpoint: string;
 };
 
+export type RequestBundle = {
+  options: RequestOptions;
+  data?: any;
+};
+
 export class REST {
   cache: RedisClient;
   api: string;
@@ -48,7 +53,7 @@ export class REST {
     this.cache.connect();
   }
 
-  async request(options: RequestOptions) {
-    return this.requestHandler._request(options);
+  async request(options: RequestOptions, data?: object) {
+    return <any>this.requestHandler._request({ options, data });
   }
 }

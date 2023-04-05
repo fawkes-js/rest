@@ -1,5 +1,5 @@
-import { REDISOptions, RequestMethod } from '@fawkes.js/api-types';
-import { REST, RequestOptions } from './REST';
+import { RequestMethod } from '@fawkes.js/api-types';
+import { REST, RequestBundle } from './REST';
 import { BucketHandler } from './BucketHandler';
 
 const routeShouldUseParamsRegex = /(?:\/bans)|(?:\/prune)/;
@@ -46,8 +46,11 @@ export class RequestManager {
     return route;
   }
 
-  async _request(options: RequestOptions) {
-    const bucket = this.routify(options.endpoint, options.requestMethod);
+  async _request(options: RequestBundle) {
+    const bucket = this.routify(
+      options.options.endpoint,
+      options.options.requestMethod
+    );
 
     if (!this.buckets[bucket])
       this.buckets[bucket] = new BucketHandler(bucket, this);

@@ -1,115 +1,87 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-import axios, { type AxiosRequestHeaders, type AxiosResponse } from 'axios'
-import { type InternalRequest } from './index'
-import { type RequestManager } from './RequestManager'
+import axios from 'axios';
+import { RequestOptions } from './REST';
+import { RequestManager } from './RequestManager';
 
+type Request = {
+  options: RequestOptions;
+  resolve: any;
+  reject: any;
+};
 export class BucketHandler {
-  manager: RequestManager
-  id: string
-  // hash: string;
-  ratelimit: { queue: any[], timer: any, total: any, time: any }
-  constructor (manager: RequestManager, id: string) {
-    this.id = id
+  id: string;
+  requestManager: RequestManager;
+  queue: Request[];
+  reset: any;
+  constructor(id: string, manager: RequestManager) {
+    this.id = id;
 
-    this.manager = manager
+    this.requestManager = manager;
 
-    this.ratelimit = {
-      queue: [],
-      timer: null,
-      total: 100,
-      time: null
-    }
+    this.queue = [];
+
+    this.reset = null;
   }
 
-  private formatRequest (options: InternalRequest): any {
-    const url: string = `${this.manager.REST.api}/v${this.manager.REST.version}${options.requestOptions.route}`
-    const headers: AxiosRequestHeaders = {}
-    if (options.requestOptions.authorized) headers.Authorization = `${this.manager.REST.prefix} ${<string> this.manager.REST.token}`
+  async queueRequest(request: RequestOptions) {
+    return new Promise(async (resolve, reject) => {
+      this.queue.push({
+        options: request,
+        resolve: resolve,
+        reject: reject,
+      });
+      console.log('QUEUE CURRENTLY:', this.queue);
 
-    let data: any
-
-    if (options.requestMethod === 'POST' || options.requestMethod === 'PUT') data = options.data
-    else data = null
-
-    return { url, headers, data }
-  }
-
-  async queueRequest (request: any): Promise<void> {
-    const rateLimitValue = Number(await this.manager.REST.redisClient.incr(`ratelimit:${this.id}`));
-    const rateLimitTotal = Number(await this.manager.REST.redisClient.get(`ratelimit:${this.id}:total`));
-    if (rateLimitTotal ? rateLimitValue > rateLimitTotal : false) {
-      this.ratelimit.queue.push(request);
       this.manageQueue();
-    } else {
-      request.resolve(this.send(request.options))
-    }
+    });
   }
 
-  async processQueue (): Promise<void> {
-    const rateLimitValue = Number(await this.manager.REST.redisClient.get(`ratelimit:${this.id}`))
-    const rateLimitTotal = Number(await this.manager.REST.redisClient.get(`ratelimit:${this.id}:total`))
-
-    if (rateLimitValue < rateLimitTotal) {
-      await this.manager.REST.redisClient.incr(`ratelimit:${this.id}`)
-
-      const request = this.ratelimit.queue.shift()
-      if (request === null) return
-      request.resolve(this.send(request.options))
-    } else {
-      this.manageQueue()
-      return
-    }
-
-    if (rateLimitValue + 1 < rateLimitTotal) {
-      await this.processQueue()
-    }
+  async manageQueue() {
+    const cache = await this.requestManager.REST.cache.get(this.id);
+    if (cache) {
+      if (Number(JSON.parse(cache).remaining) > 0) this.processQueue();
+      else {
+        if (!this.reset) {
+          this.reset = setTimeout(() => {
+            this.reset = null;
+            this.manageQueue();
+          }, (await this.requestManager.REST.cache.ttl(this.id)) * 1000);
+        }
+      }
+    } else this.processQueue();
   }
+  async processQueue() {
+    const request: Request | undefined = this.queue.pop();
 
-  manageQueue (): void {
-    if (this.ratelimit.queue.length < 1) return
-    if (this.ratelimit.timer > 0) return
-    this.ratelimit.timer = setTimeout(
-      () => {
-        void (async () => {
-          this.ratelimit.timer = null
-          await this.processQueue()
-        })()
-      },
-      this.ratelimit.time * 1000 ? this.ratelimit.time : 1000
-    )
-  }
+    if (!request) return;
 
-  async handleResponse (res: AxiosResponse): Promise<void> {
-    if (
-      !res.headers['x-RateLimit-Limit'] ||
-      !res.headers['x-RateLimit-Remaining'] ||
-      !res.headers['x-RateLimit-Reset'] ||
-      !res.headers['x-RateLimit-Reset-After'] ||
-      !res.headers['x-RateLimit-Bucket']
-    ) { return }
-    this.ratelimit.time = Number(res.headers['x-ratelimit-reset-after'])
-    const current = await this.manager.REST.redisClient.get(`ratelimit:${this.id}`)
-    await this.manager.REST.redisClient.set(`ratelimit:${this.id}:total`, String(Number(res.headers['x-ratelimit-limit']) - Number(current)))
+    console.log('req sent!');
+    const res = await axios.request({
+      method: request.options.requestMethod,
+      url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.endpoint}`,
+      headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
+    });
 
-    await this.manager.REST.redisClient.expire(`ratelimit:${this.id}`, this.ratelimit.time, 'NX')
-  }
+    const cache = await this.requestManager.REST.cache.get(this.id);
+    if (cache)
+      this.requestManager.REST.cache.set(
+        this.id,
+        JSON.stringify({
+          limit: JSON.parse(cache).limit,
+          remaining: Number(JSON.parse(cache).remaining) - 1,
+        }),
+        { expire: 'KEEPTTL' }
+      );
+    else
+      await this.requestManager.REST.cache.set(
+        this.id,
+        JSON.stringify({
+          limit: res.headers['x-ratelimit-limit'],
+          remaining: res.headers['x-ratelimit-remaining'],
+        }),
+        { expire: 'EX', time: Number(50) }
+      );
 
-  async send (options: InternalRequest): Promise<any> {
-    const request = this.formatRequest(options)
-    const res = await axios({
-      url: request.url,
-      method: options.requestMethod,
-      headers: request.headers,
-      data: request.data
-    })
-      .then(async (res) => {
-        await this.handleResponse(res)
-        return res.data
-      })
-      .catch((err) => {
-        return err
-      })
-
-    return res
+    request.resolve(res.data);
+    this.manageQueue();
   }
 }

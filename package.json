@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "@types/axios": "^0.14.0",
-    "@types/node": "^18.11.17",
+    "@types/node": "^18.15.11",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "eslint": "^8.37.0",
     "eslint-config-standard-with-typescript": "^34.0.1",

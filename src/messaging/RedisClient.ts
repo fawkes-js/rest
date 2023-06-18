@@ -1,5 +1,5 @@
-import { type REDISOptions } from '@fawkes.js/api-types';
-import { type RedisClientType, createClient } from 'redis';
+import { type REDISOptions } from "@fawkes.js/api-types";
+import { type RedisClientType, createClient } from "redis";
 
 export class RedisClient {
   options: REDISOptions;
@@ -12,9 +12,9 @@ export class RedisClient {
     const url =
       (this.options.url as string).length > 0
         ? this.options.url
-        : `redis://${this.options.username as string}:${
-            this.options.password as string
-          }@${this.options.hostname as string}:${this.options.port as string}`;
+        : `redis://${this.options.username as string}:${this.options.password as string}@${this.options.hostname as string}:${
+            this.options.port as string
+          }`;
 
     this.cache = createClient({ url });
 
@@ -28,15 +28,15 @@ export class RedisClient {
   async set(
     key: string,
     value: string,
-    expiry?: { expire: 'EX' | 'PX' | 'KEEPTTL' | 'PXAT'; time?: number }
+    expiry?: { expire: "EX" | "PX" | "KEEPTTL" | "PXAT"; time?: number }
   ): Promise<string | null | undefined> {
     if (expiry) {
       switch (expiry.expire) {
-        case 'EX':
+        case "EX":
           return await this.cache.set(key, value, { EX: expiry.time });
-        case 'PXAT':
+        case "PXAT":
           return await this.cache.set(key, value, { PXAT: expiry.time });
-        case 'KEEPTTL':
+        case "KEEPTTL":
           return await this.cache.set(key, value, { KEEPTTL: true });
       }
     } else return await this.cache.set(key, value);

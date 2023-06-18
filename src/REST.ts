@@ -1,6 +1,6 @@
-import { type REDISOptions, type RequestMethod } from '@fawkes.js/api-types';
-import { RedisClient } from './messaging/RedisClient';
-import { RequestManager } from './RequestManager';
+import { type REDISOptions, type RequestMethod } from "@fawkes.js/api-types";
+import { RedisClient } from "./messaging/RedisClient";
+import { RequestManager } from "./RequestManager";
 
 export interface RESTOptions {
   discord: {

@@ -1,6 +1,6 @@
-import axios, { type AxiosResponse, type AxiosResponseHeaders } from 'axios';
-import { type RequestBundle } from './REST';
-import { type RequestManager } from './RequestManager';
+import axios, { type AxiosResponse, type AxiosResponseHeaders } from "axios";
+import { type RequestBundle } from "./REST";
+import { type RequestManager } from "./RequestManager";
 
 interface Request {
   options: RequestBundle;
@@ -55,7 +55,7 @@ export class BucketHandler {
           limit: 0,
           remaining: 0,
         }),
-        { expire: 'EX', time: 1 }
+        { expire: "EX", time: 1 }
       );
       void this.processQueue();
     }
@@ -81,10 +81,7 @@ export class BucketHandler {
           console.log(err);
           void cacheSaver(err.response.headers);
 
-          void this.requestManager.REST.request(
-            request.options.options,
-            request.options.data
-          );
+          void this.requestManager.REST.request(request.options.options, request.options.data);
         });
     } else {
       axios
@@ -99,10 +96,7 @@ export class BucketHandler {
         .catch((err) => {
           console.log(err);
           void cacheSaver(err.response.headers);
-          void this.requestManager.REST.request(
-            request.options.options,
-            request.options.data
-          );
+          void this.requestManager.REST.request(request.options.options, request.options.data);
         });
     }
 
@@ -110,12 +104,12 @@ export class BucketHandler {
       await this.requestManager.REST.cache.set(
         this.id,
         JSON.stringify({
-          limit: headers['x-ratelimit-limit'],
-          remaining: headers['x-ratelimit-remaining'],
+          limit: headers["x-ratelimit-limit"],
+          remaining: headers["x-ratelimit-remaining"],
         }),
         {
-          expire: 'PXAT',
-          time: Number(headers['x-ratelimit-reset']) * 1000,
+          expire: "PXAT",
+          time: Number(headers["x-ratelimit-reset"]) * 1000,
         }
       );
     };

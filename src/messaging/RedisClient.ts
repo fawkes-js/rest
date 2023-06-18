@@ -28,12 +28,14 @@ export class RedisClient {
   async set(
     key: string,
     value: string,
-    expiry?: { expire: 'EX' | 'PX' | 'KEEPTTL'; time?: number }
+    expiry?: { expire: 'EX' | 'PX' | 'KEEPTTL' | 'PXAT'; time?: number }
   ) {
     if (expiry) {
       switch (expiry.expire) {
         case 'EX':
           return this.cache.set(key, value, { EX: expiry.time });
+        case 'PXAT':
+          return this.cache.set(key, value, { PXAT: expiry.time });
         case 'KEEPTTL':
           return this.cache.set(key, value, { KEEPTTL: true });
       }
@@ -42,5 +44,9 @@ export class RedisClient {
 
   async ttl(key: string) {
     return this.cache.ttl(key);
+  }
+
+  async expireTime(key: string) {
+    return this.cache.expireTime(key);
   }
 }

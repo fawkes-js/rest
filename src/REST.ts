@@ -35,6 +35,7 @@ export class REST {
   token: string;
   requestHandler: RequestManager;
   tokenType: string;
+  options: RESTOptions;
   constructor(options: RESTOptions) {
     this.cache = new RedisClient(options.redis);
 
@@ -47,6 +48,8 @@ export class REST {
     this.tokenType = options.discord.tokenType;
 
     this.requestHandler = new RequestManager(this);
+
+    this.options = options;
   }
 
   async initialise() {

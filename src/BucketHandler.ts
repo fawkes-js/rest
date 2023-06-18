@@ -1,12 +1,12 @@
-import axios, { AxiosResponse } from 'axios';
-import { RequestBundle } from './REST';
-import { RequestManager } from './RequestManager';
+import axios, { type AxiosResponse, type AxiosResponseHeaders } from "axios";
+import { type RequestBundle } from "./REST";
+import { type RequestManager } from "./RequestManager";
 
-type Request = {
+interface Request {
   options: RequestBundle;
   resolve: any;
   reject: any;
-};
+}
 export class BucketHandler {
   id: string;
   requestManager: RequestManager;
@@ -22,75 +22,103 @@ export class BucketHandler {
     this.reset = null;
   }
 
-  async queueRequest(request: RequestBundle) {
-    return new Promise(async (resolve, reject) => {
+  async queueRequest(request: RequestBundle): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
+    return await new Promise(async (resolve, reject) => {
       this.queue.push({
         options: request,
-        resolve: resolve,
-        reject: reject,
+        resolve,
+        reject,
       });
-      console.log('QUEUE CURRENTLY:', this.queue);
 
-      this.manageQueue();
+      void this.manageQueue();
     });
   }
 
-  async manageQueue() {
+  async manageQueue(): Promise<void> {
     const cache = await this.requestManager.REST.cache.get(this.id);
     if (cache) {
-      if (Number(JSON.parse(cache).remaining) > 0) this.processQueue();
-      else {
+      if (Number(JSON.parse(cache).remaining) > 1) {
+        void this.processQueue();
+      } else {
         if (!this.reset) {
           this.reset = setTimeout(() => {
             this.reset = null;
-            this.manageQueue();
-          }, (await this.requestManager.REST.cache.ttl(this.id)) * 1000);
+            void this.manageQueue();
+          }, (((await this.requestManager.REST.cache.ttl(this.id)) as number) + 1) * 1000);
         }
       }
-    } else this.processQueue();
+    } else {
+      void this.requestManager.REST.cache.set(
+        this.id,
+        JSON.stringify({
+          limit: 0,
+          remaining: 0,
+        }),
+        { expire: "EX", time: 1 }
+      );
+      void this.processQueue();
+    }
   }
-  async processQueue() {
+
+  async processQueue(): Promise<void> {
     const request: Request | undefined = this.queue.pop();
 
     if (!request) return;
 
-    let res: AxiosResponse;
-    if (request.options.data)
-      res = await axios.request({
-        method: request.options.options.requestMethod,
-        url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.options.endpoint}`,
-        headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
-        data: request.options.data,
-      });
-    else
-      res = await axios.request({
-        method: request.options.options.requestMethod,
-        url: `${this.requestManager.REST.api}/${this.requestManager.REST.version}/${request.options.options.endpoint}`,
-        headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
-      });
+    if (request.options.data) {
+      axios
+        .request({
+          method: request.options.options.requestMethod,
+          url: `${this.requestManager.REST.api}/v${this.requestManager.REST.version}${request.options.options.endpoint}`,
+          headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
+          data: request.options.data,
+        })
+        .then((res: AxiosResponse) => {
+          void responseHandler(res);
+        })
+        .catch(async (err) => {
+          console.log(err);
+          void cacheSaver(err.response.headers);
 
-    console.log(res);
-    const cache = await this.requestManager.REST.cache.get(this.id);
-    if (cache)
-      this.requestManager.REST.cache.set(
-        this.id,
-        JSON.stringify({
-          limit: JSON.parse(cache).limit,
-          remaining: Number(JSON.parse(cache).remaining) - 1,
-        }),
-        { expire: 'KEEPTTL' }
-      );
-    else
+          void this.requestManager.REST.request(request.options.options, request.options.data);
+        });
+    } else {
+      axios
+        .request({
+          method: request.options.options.requestMethod,
+          url: `${this.requestManager.REST.api}/v${this.requestManager.REST.version}${request.options.options.endpoint}`,
+          headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
+        })
+        .then((res: AxiosResponse) => {
+          void responseHandler(res);
+        })
+        .catch((err) => {
+          console.log(err);
+          void cacheSaver(err.response.headers);
+          void this.requestManager.REST.request(request.options.options, request.options.data);
+        });
+    }
+
+    const cacheSaver = async (headers: AxiosResponseHeaders): Promise<void> => {
       await this.requestManager.REST.cache.set(
         this.id,
         JSON.stringify({
-          limit: res.headers['x-ratelimit-limit'],
-          remaining: res.headers['x-ratelimit-remaining'],
+          limit: headers["x-ratelimit-limit"],
+          remaining: headers["x-ratelimit-remaining"],
         }),
-        { expire: 'EX', time: Number(50) }
+        {
+          expire: "PXAT",
+          time: Number(headers["x-ratelimit-reset"]) * 1000,
+        }
       );
+    };
+    const responseHandler = async (res: AxiosResponse): Promise<void> => {
+      void cacheSaver(res.headers).then(() => {
+        request.resolve(res.data);
 
-    request.resolve(res.data);
-    this.manageQueue();
+        void this.manageQueue();
+      });
+    };
   }
 }

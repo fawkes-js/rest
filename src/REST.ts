@@ -1,13 +1,8 @@
-import {
-  REDISOptions,
-  RequestMethod,
-  type Response,
-} from '@fawkes.js/api-types';
+import { type REDISOptions, type RequestMethod } from '@fawkes.js/api-types';
 import { RedisClient } from './messaging/RedisClient';
-import axios from 'axios';
 import { RequestManager } from './RequestManager';
 
-export type RESTOptions = {
+export interface RESTOptions {
   discord: {
     api: string;
     version: string;
@@ -15,18 +10,18 @@ export type RESTOptions = {
     tokenType: string;
   };
   redis: REDISOptions;
-};
+}
 
-export type RequestOptions = {
+export interface RequestOptions {
   requestMethod: RequestMethod;
   authorized: boolean;
   endpoint: string;
-};
+}
 
-export type RequestBundle = {
+export interface RequestBundle {
   options: RequestOptions;
   data?: any;
-};
+}
 
 export class REST {
   cache: RedisClient;
@@ -52,11 +47,11 @@ export class REST {
     this.options = options;
   }
 
-  async initialise() {
-    this.cache.connect();
+  async initialise(): Promise<void> {
+    void this.cache.connect();
   }
 
-  async request(options: RequestOptions, data?: object) {
-    return <any>this.requestHandler._request({ options, data });
+  async request(options: RequestOptions, data?: object): Promise<any> {
+    return this.requestHandler._request({ options, data }) as any;
   }
 }

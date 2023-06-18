@@ -1,12 +1,12 @@
-import axios, { AxiosResponse, AxiosResponseHeaders } from 'axios';
-import { RequestBundle } from './REST';
-import { RequestManager } from './RequestManager';
+import axios, { type AxiosResponse, type AxiosResponseHeaders } from 'axios';
+import { type RequestBundle } from './REST';
+import { type RequestManager } from './RequestManager';
 
-type Request = {
+interface Request {
   options: RequestBundle;
   resolve: any;
   reject: any;
-};
+}
 export class BucketHandler {
   id: string;
   requestManager: RequestManager;
@@ -22,33 +22,34 @@ export class BucketHandler {
     this.reset = null;
   }
 
-  async queueRequest(request: RequestBundle) {
-    return new Promise(async (resolve, reject) => {
+  async queueRequest(request: RequestBundle): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
+    return await new Promise(async (resolve, reject) => {
       this.queue.push({
         options: request,
-        resolve: resolve,
-        reject: reject,
+        resolve,
+        reject,
       });
 
-      this.manageQueue();
+      void this.manageQueue();
     });
   }
 
-  async manageQueue() {
+  async manageQueue(): Promise<void> {
     const cache = await this.requestManager.REST.cache.get(this.id);
     if (cache) {
       if (Number(JSON.parse(cache).remaining) > 1) {
-        this.processQueue();
+        void this.processQueue();
       } else {
         if (!this.reset) {
           this.reset = setTimeout(() => {
             this.reset = null;
-            this.manageQueue();
-          }, ((await this.requestManager.REST.cache.ttl(this.id)) + 1) * 1000);
+            void this.manageQueue();
+          }, (((await this.requestManager.REST.cache.ttl(this.id)) as number) + 1) * 1000);
         }
       }
     } else {
-      this.requestManager.REST.cache.set(
+      void this.requestManager.REST.cache.set(
         this.id,
         JSON.stringify({
           limit: 0,
@@ -56,10 +57,11 @@ export class BucketHandler {
         }),
         { expire: 'EX', time: 1 }
       );
-      this.processQueue();
+      void this.processQueue();
     }
   }
-  async processQueue() {
+
+  async processQueue(): Promise<void> {
     const request: Request | undefined = this.queue.pop();
 
     if (!request) return;
@@ -73,13 +75,13 @@ export class BucketHandler {
           data: request.options.data,
         })
         .then((res: AxiosResponse) => {
-          responseHandler(res);
+          void responseHandler(res);
         })
         .catch(async (err) => {
           console.log(err);
-          cacheSaver(err.response.headers);
+          void cacheSaver(err.response.headers);
 
-          this.requestManager.REST.request(
+          void this.requestManager.REST.request(
             request.options.options,
             request.options.data
           );
@@ -92,19 +94,19 @@ export class BucketHandler {
           headers: { Authorization: `Bot ${this.requestManager.REST.token}` },
         })
         .then((res: AxiosResponse) => {
-          responseHandler(res);
+          void responseHandler(res);
         })
         .catch((err) => {
           console.log(err);
-          cacheSaver(err.response.headers);
-          this.requestManager.REST.request(
+          void cacheSaver(err.response.headers);
+          void this.requestManager.REST.request(
             request.options.options,
             request.options.data
           );
         });
     }
 
-    const cacheSaver = async (headers: AxiosResponseHeaders) => {
+    const cacheSaver = async (headers: AxiosResponseHeaders): Promise<void> => {
       await this.requestManager.REST.cache.set(
         this.id,
         JSON.stringify({
@@ -117,11 +119,11 @@ export class BucketHandler {
         }
       );
     };
-    const responseHandler = async (res: AxiosResponse) => {
-      cacheSaver(res.headers).then(() => {
-        request!.resolve(res.data);
+    const responseHandler = async (res: AxiosResponse): Promise<void> => {
+      void cacheSaver(res.headers).then(() => {
+        request.resolve(res.data);
 
-        this.manageQueue();
+        void this.manageQueue();
       });
     };
   }

@@ -1,10 +1,7 @@
-import { RequestMethod } from '@fawkes.js/api-types';
-import { REST, RequestBundle } from './REST';
+import { type RequestMethod } from '@fawkes.js/api-types';
+import { type REST, type RequestBundle } from './REST';
 import { BucketHandler } from './BucketHandler';
 
-const routeShouldUseParamsRegex = /(?:\/bans)|(?:\/prune)/;
-
-const applicationJSONRegex = /application\/json/;
 const routeRegex = /\/([a-z-]+)\/(?:\d{17,19})/g;
 const reactionsRegex = /\/reactions\/[^/]+/g;
 const reactionsUserRegex = /\/reactions\/:id\/[^/]+/g;
@@ -13,8 +10,8 @@ const isMessageEndpointRegex = /\/messages\/:id$/;
 const isGuildChannelsRegex = /\/guilds\/\d+\/channels$/;
 
 export class RequestManager {
-  ratelimit: {};
-  buckets: { [id: string]: BucketHandler } = {};
+  ratelimit: object;
+  buckets: Record<string, BucketHandler> = {};
   REST: REST;
   constructor(REST: REST) {
     this.ratelimit = {};
@@ -22,7 +19,7 @@ export class RequestManager {
     this.REST = REST;
   }
 
-  routify(url: string, method: RequestMethod) {
+  routify(url: string, method: RequestMethod): string {
     // Completely stolen from DasWolke's SnowTransfer package.
     let route = url
       .replace(routeRegex, function (match, p: string) {
@@ -46,7 +43,7 @@ export class RequestManager {
     return route;
   }
 
-  async _request(options: RequestBundle) {
+  async _request(options: RequestBundle): Promise<any> {
     const bucket = this.routify(
       options.options.endpoint,
       options.options.requestMethod
@@ -54,6 +51,6 @@ export class RequestManager {
 
     if (!this.buckets[bucket])
       this.buckets[bucket] = new BucketHandler(bucket, this);
-    return this.buckets[bucket].queueRequest(options);
+    return await this.buckets[bucket].queueRequest(options);
   }
 }

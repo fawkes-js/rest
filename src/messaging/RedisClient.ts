@@ -1,5 +1,5 @@
-import { REDISOptions } from '@fawkes.js/api-types';
-import { RedisClientType, createClient } from 'redis';
+import { type REDISOptions } from '@fawkes.js/api-types';
+import { type RedisClientType, createClient } from 'redis';
 
 export class RedisClient {
   options: REDISOptions;
@@ -10,43 +10,43 @@ export class RedisClient {
 
   async connect(): Promise<void> {
     const url =
-      (<string>this.options.url).length > 0
+      (this.options.url as string).length > 0
         ? this.options.url
-        : `redis://${<string>this.options.username}:${<string>(
-            this.options.password
-          )}@${<string>this.options.hostname}:${<string>this.options.port}`;
+        : `redis://${this.options.username as string}:${
+            this.options.password as string
+          }@${this.options.hostname as string}:${this.options.port as string}`;
 
     this.cache = createClient({ url });
 
     await this.cache.connect();
   }
 
-  async get(key: string) {
-    return this.cache.get(key);
+  async get(key: string): Promise<string | null> {
+    return await this.cache.get(key);
   }
 
   async set(
     key: string,
     value: string,
     expiry?: { expire: 'EX' | 'PX' | 'KEEPTTL' | 'PXAT'; time?: number }
-  ) {
+  ): Promise<string | null | undefined> {
     if (expiry) {
       switch (expiry.expire) {
         case 'EX':
-          return this.cache.set(key, value, { EX: expiry.time });
+          return await this.cache.set(key, value, { EX: expiry.time });
         case 'PXAT':
-          return this.cache.set(key, value, { PXAT: expiry.time });
+          return await this.cache.set(key, value, { PXAT: expiry.time });
         case 'KEEPTTL':
-          return this.cache.set(key, value, { KEEPTTL: true });
+          return await this.cache.set(key, value, { KEEPTTL: true });
       }
-    } else return this.cache.set(key, value);
+    } else return await this.cache.set(key, value);
   }
 
-  async ttl(key: string) {
-    return this.cache.ttl(key);
+  async ttl(key: string): Promise<number | null> {
+    return await this.cache.ttl(key);
   }
 
-  async expireTime(key: string) {
-    return this.cache.expireTime(key);
+  async expireTime(key: string): Promise<number | null> {
+    return await this.cache.expireTime(key);
   }
 }

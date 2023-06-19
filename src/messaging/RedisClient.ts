@@ -1,4 +1,4 @@
-import { type REDISOptions } from "@fawkes.js/api-types";
+import { type REDISOptions } from "@fawkes.js/typings";
 import { type RedisClientType, createClient } from "redis";
 
 export class RedisClient {
@@ -10,11 +10,11 @@ export class RedisClient {
 
   async connect(): Promise<void> {
     const url =
-      (this.options.url as string).length > 0
+      (<string>this.options.url).length > 0
         ? this.options.url
-        : `redis://${this.options.username as string}:${this.options.password as string}@${this.options.hostname as string}:${
-            this.options.port as string
-          }`;
+        : `redis://${<string>this.options.username}:${<string>this.options.password}@${<string>this.options.hostname}:${<string>(
+            this.options.port
+          )}`;
 
     this.cache = createClient({ url });
 

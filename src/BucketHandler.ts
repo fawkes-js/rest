@@ -45,7 +45,7 @@ export class BucketHandler {
           this.reset = setTimeout(() => {
             this.reset = null;
             void this.manageQueue();
-          }, (((await this.requestManager.REST.cache.ttl(this.id)) as number) + 1) * 1000);
+          }, (<number>await this.requestManager.REST.cache.ttl(this.id) + 1) * 1000);
         }
       }
     } else {

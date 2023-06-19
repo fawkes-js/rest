@@ -1,4 +1,4 @@
-import { type REDISOptions, type RequestMethod } from "@fawkes.js/api-types";
+import { type REDISOptions, type RequestMethod } from "@fawkes.js/typings";
 import { RedisClient } from "./messaging/RedisClient";
 import { RequestManager } from "./RequestManager";
 
@@ -52,6 +52,6 @@ export class REST {
   }
 
   async request(options: RequestOptions, data?: object): Promise<any> {
-    return this.requestHandler._request({ options, data }) as any;
+    return <any>this.requestHandler._request({ options, data });
   }
 }

@@ -1,4 +1,4 @@
-import { type RequestMethod } from "@fawkes.js/api-types";
+import { type RequestMethod } from "@fawkes.js/typings";
 import { type REST, type RequestBundle } from "./REST";
 import { BucketHandler } from "./BucketHandler";
 

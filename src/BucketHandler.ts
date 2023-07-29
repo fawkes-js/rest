@@ -81,7 +81,7 @@ export class BucketHandler {
           console.log(err);
           void cacheSaver(err.response.headers);
 
-          void this.requestManager.REST.request(request.options.options, request.options.data);
+          // void this.requestManager.REST.request(request.options.options, request.options.data);
         });
     } else {
       axios
@@ -96,7 +96,7 @@ export class BucketHandler {
         .catch((err) => {
           console.log(err);
           void cacheSaver(err.response.headers);
-          void this.requestManager.REST.request(request.options.options, request.options.data);
+          // void this.requestManager.REST.request(request.options.options, request.options.data);
         });
     }
 

@@ -36,28 +36,31 @@ export class BucketHandler {
   }
 
   async manageQueue(): Promise<void> {
-    const cache = await this.requestManager.REST.cache.get(this.id);
-    if (cache) {
-      if (Number(JSON.parse(cache).remaining) > 1) {
-        void this.processQueue();
-      } else {
-        if (!this.reset) {
-          this.reset = setTimeout(() => {
-            this.reset = null;
-            void this.manageQueue();
-          }, (<number>await this.requestManager.REST.cache.ttl(this.id) + 1) * 1000);
-        }
-      }
-    } else {
-      void this.requestManager.REST.cache.set(
-        this.id,
-        JSON.stringify({
-          limit: 0,
-          remaining: 0,
-        }),
-        { expire: "EX", time: 1 }
-      );
+    const cache = await this.requestManager.REST.cache.set(
+      this.id,
+      JSON.stringify({
+        limit: 0,
+        remaining: 0,
+      }),
+      { expire: "EX", time: 1 },
+      true,
+      true
+    );
+
+    if (!cache) {
       void this.processQueue();
+      return;
+    }
+
+    if (Number(JSON.parse(cache).remaining) > 1) {
+      void this.processQueue();
+    } else {
+      if (!this.reset) {
+        this.reset = setTimeout(() => {
+          this.reset = null;
+          void this.manageQueue();
+        }, (<number>await this.requestManager.REST.cache.ttl(this.id) + 1) * 1000);
+      }
     }
   }
 
@@ -78,7 +81,9 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch(async (err) => {
-          console.log(err);
+          // console.log(err);
+          console.log(request.options.options);
+
           void cacheSaver(err.response.headers);
 
           // void this.requestManager.REST.request(request.options.options, request.options.data);
@@ -94,7 +99,8 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch((err) => {
-          console.log(err);
+          // console.log(err);
+          console.log(request.options.options);
           void cacheSaver(err.response.headers);
           // void this.requestManager.REST.request(request.options.options, request.options.data);
         });

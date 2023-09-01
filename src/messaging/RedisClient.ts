@@ -28,16 +28,21 @@ export class RedisClient {
   async set(
     key: string,
     value: string,
-    expiry?: { expire: "EX" | "PX" | "KEEPTTL" | "PXAT"; time?: number }
+    expiry?: { expire: "EX" | "PX" | "KEEPTTL" | "PXAT"; time?: number },
+    NX?: true | false,
+    GET?: boolean
   ): Promise<string | null | undefined> {
+    const options: any = {};
+    if (NX) options.NX = NX;
+    if (GET) options.GET = GET;
     if (expiry) {
       switch (expiry.expire) {
         case "EX":
-          return await this.cache.set(key, value, { EX: expiry.time });
+          return await this.cache.set(key, value, { EX: expiry.time, ...options });
         case "PXAT":
-          return await this.cache.set(key, value, { PXAT: expiry.time });
+          return await this.cache.set(key, value, { PXAT: expiry.time, ...options });
         case "KEEPTTL":
-          return await this.cache.set(key, value, { KEEPTTL: true });
+          return await this.cache.set(key, value, { KEEPTTL: true, ...options });
       }
     } else return await this.cache.set(key, value);
   }

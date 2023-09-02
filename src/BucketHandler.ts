@@ -82,9 +82,8 @@ export class BucketHandler {
         })
         .catch(async (err) => {
           // console.log(err);
-          console.log(request.options.options);
 
-          void cacheSaver(err.response.headers);
+          void errorHandler(err.response);
 
           // void this.requestManager.REST.request(request.options.options, request.options.data);
         });
@@ -99,9 +98,8 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch((err) => {
-          // console.log(err);
-          console.log(request.options.options);
-          void cacheSaver(err.response.headers);
+          void errorHandler(err.response);
+
           // void this.requestManager.REST.request(request.options.options, request.options.data);
         });
     }
@@ -122,6 +120,13 @@ export class BucketHandler {
     const responseHandler = async (res: AxiosResponse): Promise<void> => {
       void cacheSaver(res.headers).then(() => {
         request.resolve(res.data);
+
+        void this.manageQueue();
+      });
+    };
+    const errorHandler = async (res: AxiosResponse): Promise<void> => {
+      void cacheSaver(res.headers).then(() => {
+        request.reject(res.data);
 
         void this.manageQueue();
       });

@@ -11,7 +11,8 @@ export class BucketHandler {
   id: string;
   requestManager: RequestManager;
   queue: Request[];
-  reset: any;
+  reset: null | number;
+  timer: any;
   constructor(id: string, manager: RequestManager) {
     this.id = id;
 
@@ -20,10 +21,12 @@ export class BucketHandler {
     this.queue = [];
 
     this.reset = null;
+
+    this.timer = null;
   }
 
   async queueRequest(request: RequestBundle): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
+    // eslint-disable-next-line no-async-promise-executor
     return await new Promise(async (resolve, reject) => {
       this.queue.push({
         options: request,
@@ -36,31 +39,62 @@ export class BucketHandler {
   }
 
   async manageQueue(): Promise<void> {
-    const cache = await this.requestManager.REST.cache.set(
-      this.id,
-      JSON.stringify({
-        limit: 0,
-        remaining: 0,
-      }),
-      { expire: "EX", time: 1 },
-      true,
-      true
-    );
+    if (this.requestManager.REST.cache.constructor.name === "RedisClient") {
+      await this.requestManager.REST.cache.cache.watch(this.id);
 
-    if (!cache) {
-      void this.processQueue();
-      return;
-    }
+      const multi = this.requestManager.REST.cache.cache.multi();
 
-    if (Number(JSON.parse(cache).remaining) > 1) {
-      void this.processQueue();
-    } else {
-      if (!this.reset) {
-        this.reset = setTimeout(() => {
-          this.reset = null;
-          void this.manageQueue();
-        }, (<number>await this.requestManager.REST.cache.ttl(this.id) + 1) * 1000);
+      let data = await this.requestManager.REST.cache.cache.get(this.id);
+
+      if (data) data = JSON.parse(data);
+      if (!data) multi.set(this.id, JSON.stringify({ total: 0, remaining: 0 }), { EX: this.reset ? this.reset : 5 });
+      else if (Number(data.remaining) > 0)
+        multi.set(this.id, JSON.stringify({ total: Number(data.total), remaining: Number(data.remaining) - 1 }), {
+          EX: this.reset ? this.reset : 5,
+        });
+      else if (Number(data.remaining) <= 0) {
+        if (this.timer) return;
+        else {
+          this.timer = setTimeout(() => {
+            this.timer = null;
+            void this.manageQueue();
+          }, (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000);
+          return;
+        }
       }
+
+      try {
+        await multi.exec();
+        void this.processQueue();
+      } catch (err) {
+        const expiry = (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000;
+        setTimeout(async () => {
+          await this.manageQueue();
+        }, expiry);
+      }
+    } else if (this.requestManager.REST.cache.constructor.name === "LocalClient") {
+      const data = await this.requestManager.REST.cache.get(this.id);
+
+      if (!data) this.requestManager.REST.cache.set(this.id, { total: 0, remaining: 0 }, { EX: this.reset ? this.reset : 5 });
+      else if (Number(data.remaining) > 0)
+        this.requestManager.REST.cache.set(
+          this.id,
+          { total: Number(data.total), remaining: Number(data.remaining) - 1 },
+          {
+            EX: this.reset ? this.reset : 5,
+          }
+        );
+      else if (Number(data.remaining) <= 0) {
+        if (this.timer) return;
+        else {
+          this.timer = setTimeout(() => {
+            this.timer = null;
+            void this.manageQueue();
+          }, (await this.requestManager.REST.cache.ttl(this.id)) * 1000);
+          return;
+        }
+      }
+      void this.processQueue();
     }
   }
 
@@ -81,8 +115,6 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch(async (err) => {
-          // console.log(err);
-
           void errorHandler(err.response);
 
           // void this.requestManager.REST.request(request.options.options, request.options.data);
@@ -107,13 +139,12 @@ export class BucketHandler {
     const cacheSaver = async (headers: AxiosResponseHeaders): Promise<void> => {
       await this.requestManager.REST.cache.set(
         this.id,
-        JSON.stringify({
-          limit: headers["x-ratelimit-limit"],
-          remaining: headers["x-ratelimit-remaining"],
-        }),
         {
-          expire: "PXAT",
-          time: Number(headers["x-ratelimit-reset"]) * 1000,
+          total: Number(headers["x-ratelimit-limit"]),
+          remaining: Number(headers["x-ratelimit-remaining"]),
+        },
+        {
+          PXAT: Number(headers["x-ratelimit-reset"]) * 1000,
         }
       );
     };

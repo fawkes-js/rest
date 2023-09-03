@@ -115,6 +115,7 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch(async (err) => {
+          console.log("ERR:", request);
           void errorHandler(err.response);
 
           // void this.requestManager.REST.request(request.options.options, request.options.data);
@@ -130,6 +131,8 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch((err) => {
+          console.log("ERR:", request);
+
           void errorHandler(err.response);
 
           // void this.requestManager.REST.request(request.options.options, request.options.data);

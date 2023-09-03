@@ -1,5 +1,4 @@
-import { type REDISOptions, type RequestMethod } from "@fawkes.js/typings";
-import { RedisClient } from "./messaging/RedisClient";
+import { type RequestMethod } from "@fawkes.js/typings";
 import { RequestManager } from "./RequestManager";
 
 export interface RESTOptions {
@@ -9,7 +8,6 @@ export interface RESTOptions {
     token: string;
     tokenType: string;
   };
-  redis: REDISOptions;
 }
 
 export interface RequestOptions {
@@ -24,15 +22,15 @@ export interface RequestBundle {
 }
 
 export class REST {
-  cache: RedisClient;
+  cache: any;
   api: string;
   version: string;
   token: string;
   requestHandler: RequestManager;
   tokenType: string;
   options: RESTOptions;
-  constructor(options: RESTOptions) {
-    this.cache = new RedisClient(options.redis);
+  constructor(options: RESTOptions, cache: any) {
+    this.cache = cache;
 
     this.api = options.discord.api;
 
@@ -45,10 +43,6 @@ export class REST {
     this.requestHandler = new RequestManager(this);
 
     this.options = options;
-  }
-
-  async initialise(): Promise<void> {
-    void this.cache.connect();
   }
 
   async request(options: RequestOptions, data?: object): Promise<any> {

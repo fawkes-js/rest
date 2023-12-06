@@ -6,6 +6,7 @@ interface Request {
   options: RequestBundle;
   resolve: any;
   reject: any;
+  temp?: any;
 }
 export class BucketHandler {
   id: string;
@@ -47,12 +48,13 @@ export class BucketHandler {
       let data = await this.requestManager.REST.cache.cache.get(this.id);
 
       if (data) data = JSON.parse(data);
-      if (!data) multi.set(this.id, JSON.stringify({ total: 0, remaining: 0 }), { EX: this.reset ? this.reset : 5 });
-      else if (Number(data.remaining) > 0)
+      if (!data) {
+        multi.set(this.id, JSON.stringify({ total: 0, remaining: 0 }), { EX: this.reset ? this.reset : 5 });
+      } else if (Number(data.remaining) > 0) {
         multi.set(this.id, JSON.stringify({ total: Number(data.total), remaining: Number(data.remaining) - 1 }), {
           EX: this.reset ? this.reset : 5,
         });
-      else if (Number(data.remaining) <= 0) {
+      } else if (Number(data.remaining) <= 0) {
         if (this.timer) return;
         else {
           this.timer = setTimeout(() => {
@@ -65,6 +67,12 @@ export class BucketHandler {
 
       try {
         await multi.exec();
+
+        this.queue[0].temp = {
+          ttl: await this.requestManager.REST.cache.ttl(this.id),
+          value: await this.requestManager.REST.cache.get(this.id),
+          here: true,
+        };
         void this.processQueue();
       } catch (err) {
         const expiry = (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000;
@@ -94,6 +102,13 @@ export class BucketHandler {
           return;
         }
       }
+
+      this.queue[0].temp = {
+        ttl: await this.requestManager.REST.cache.ttl(this.id),
+        value: await this.requestManager.REST.cache.get(this.id),
+        here: false,
+      };
+      void this.processQueue();
       void this.processQueue();
     }
   }
@@ -115,10 +130,7 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch(async (err) => {
-          console.log("ERR:", request);
-          void errorHandler(err.response);
-
-          // void this.requestManager.REST.request(request.options.options, request.options.data);
+          void errorHandler(err.response, request);
         });
     } else {
       axios
@@ -131,11 +143,7 @@ export class BucketHandler {
           void responseHandler(res);
         })
         .catch((err) => {
-          console.log("ERR:", request);
-
-          void errorHandler(err.response);
-
-          // void this.requestManager.REST.request(request.options.options, request.options.data);
+          void errorHandler(err.response, request);
         });
     }
 
@@ -158,9 +166,11 @@ export class BucketHandler {
         void this.manageQueue();
       });
     };
-    const errorHandler = async (res: AxiosResponse): Promise<void> => {
+    const errorHandler = async (res: any, request: Request): Promise<void> => {
+      console.log(`[Error] REST Error encountered. Route: ${<string>res.request.path}`);
       void cacheSaver(res.headers).then(() => {
-        request.reject(res.data);
+        if (res.request.res.statusCode === 429) void this.requestManager.REST.request(request.options.options, request.options.data);
+        else request.reject(res.data);
 
         void this.manageQueue();
       });

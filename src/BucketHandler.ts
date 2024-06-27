@@ -57,10 +57,12 @@ export class BucketHandler {
       } else if (Number(data.remaining) <= 0) {
         if (this.timer) return;
         else {
-          this.timer = setTimeout(() => {
+          const ttl = (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000;
+
+          this.timer = setTimeout(async () => {
             this.timer = null;
             void this.manageQueue();
-          }, (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000);
+          }, ttl);
           return;
         }
       }
@@ -68,11 +70,12 @@ export class BucketHandler {
       try {
         await multi.exec();
 
-        this.queue[0].temp = {
-          ttl: await this.requestManager.REST.cache.ttl(this.id),
-          value: await this.requestManager.REST.cache.get(this.id),
-          here: true,
-        };
+        if (this.queue[0])
+          this.queue[0].temp = {
+            ttl: await this.requestManager.REST.cache.ttl(this.id),
+            value: await this.requestManager.REST.cache.get(this.id),
+            here: true,
+          };
         void this.processQueue();
       } catch (err) {
         const expiry = (await this.requestManager.REST.cache.cache.ttl(this.id)) * 1000;
@@ -102,12 +105,12 @@ export class BucketHandler {
           return;
         }
       }
-
-      this.queue[0].temp = {
-        ttl: await this.requestManager.REST.cache.ttl(this.id),
-        value: await this.requestManager.REST.cache.get(this.id),
-        here: false,
-      };
+      if (this.queue[0])
+        this.queue[0].temp = {
+          ttl: await this.requestManager.REST.cache.ttl(this.id),
+          value: await this.requestManager.REST.cache.get(this.id),
+          here: false,
+        };
       void this.processQueue();
       void this.processQueue();
     }
